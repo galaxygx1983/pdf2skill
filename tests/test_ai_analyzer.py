@@ -1,7 +1,13 @@
 # tests/test_ai_analyzer.py
 import pytest
 from unittest.mock import Mock, patch
-from scripts.ai_analyzer import AIAnalyzer, Workflow, WorkflowStep, DocumentAnalysis
+from scripts.ai_analyzer import (
+    AIAnalyzer,
+    Workflow,
+    WorkflowStep,
+    DocumentAnalysis,
+    QAPair,
+)
 
 
 def test_workflow_creation():
@@ -10,13 +16,13 @@ def test_workflow_creation():
         name="Setup",
         description="Initialize the project",
         commands=["npm install", "npm run setup"],
-        validation="Check if node_modules exists"
+        validation="Check if node_modules exists",
     )
     workflow = Workflow(
         name="Setup Project",
         trigger="When starting a new project",
         steps=[step],
-        complexity="simple"
+        complexity="simple",
     )
     assert workflow.name == "Setup Project"
     assert len(workflow.steps) == 1
@@ -24,12 +30,12 @@ def test_workflow_creation():
 
 def test_analyze_document_overview():
     """Test document overview analysis."""
-    with patch('scripts.ai_analyzer.AIAnalyzer._call_llm') as mock_llm:
+    with patch("scripts.ai_analyzer.AIAnalyzer._call_llm") as mock_llm:
         mock_llm.return_value = {
             "document_type": "technical_manual",
             "audience": "developers",
             "topics": ["setup", "configuration", "usage"],
-            "complexity": "medium"
+            "complexity": "medium",
         }
 
         analyzer = AIAnalyzer(provider="anthropic", model="claude-sonnet-4-6")
@@ -41,7 +47,7 @@ def test_analyze_document_overview():
 
 def test_extract_workflows():
     """Test workflow extraction."""
-    with patch('scripts.ai_analyzer.AIAnalyzer._call_llm') as mock_llm:
+    with patch("scripts.ai_analyzer.AIAnalyzer._call_llm") as mock_llm:
         mock_llm.return_value = {
             "workflows": [
                 {
@@ -49,8 +55,8 @@ def test_extract_workflows():
                     "trigger": "When setting up the tool",
                     "steps": [
                         {"name": "Download", "description": "Download the package"},
-                        {"name": "Install", "description": "Run installer"}
-                    ]
+                        {"name": "Install", "description": "Run installer"},
+                    ],
                 }
             ]
         }
@@ -73,17 +79,29 @@ def test_assess_code_complexity():
 
     # Medium complexity code
     medium_code = [
-        {"language": "python", "code": "class Complex:\n    def __init__(self):\n        ..."},
-        {"language": "python", "code": "def advanced():\n    ..."}
+        {
+            "language": "python",
+            "code": "class Complex:\n    def __init__(self):\n        ...",
+        },
+        {"language": "python", "code": "def advanced():\n    ..."},
     ]
     result = analyzer.assess_code_complexity(medium_code)
     assert result == "medium"
 
     # Complex code - multiple classes, functions, async, imports
     complex_code = [
-        {"language": "python", "code": "import asyncio\nimport logging\n\nclass DataProcessor:\n    async def process(self, data):\n        if data:\n            for item in data:\n                await self._handle(item)\n"},
-        {"language": "python", "code": "class Handler:\n    def __init__(self):\n        self.logger = logging.getLogger(__name__)\n    async def _handle(self, item):\n        try:\n            await self._process_item(item)\n        except Exception as e:\n            self.logger.error(e)"},
-        {"language": "python", "code": "async def main():\n    processor = DataProcessor()\n    await processor.process([1, 2, 3])"}
+        {
+            "language": "python",
+            "code": "import asyncio\nimport logging\n\nclass DataProcessor:\n    async def process(self, data):\n        if data:\n            for item in data:\n                await self._handle(item)\n",
+        },
+        {
+            "language": "python",
+            "code": "class Handler:\n    def __init__(self):\n        self.logger = logging.getLogger(__name__)\n    async def _handle(self, item):\n        try:\n            await self._process_item(item)\n        except Exception as e:\n            self.logger.error(e)",
+        },
+        {
+            "language": "python",
+            "code": "async def main():\n    processor = DataProcessor()\n    await processor.process([1, 2, 3])",
+        },
     ]
     result = analyzer.assess_code_complexity(complex_code)
     assert result == "complex"
@@ -91,11 +109,15 @@ def test_assess_code_complexity():
 
 def test_generate_validation_rules():
     """Test validation rule generation."""
-    with patch('scripts.ai_analyzer.AIAnalyzer._call_llm') as mock_llm:
+    with patch("scripts.ai_analyzer.AIAnalyzer._call_llm") as mock_llm:
         mock_llm.return_value = {
             "validation_rules": [
                 {"step": "Setup", "type": "command", "command": "test -f package.json"},
-                {"step": "Install", "type": "output_check", "expected": "installed successfully"}
+                {
+                    "step": "Install",
+                    "type": "output_check",
+                    "expected": "installed successfully",
+                },
             ]
         }
 
@@ -109,16 +131,19 @@ def test_generate_validation_rules():
 
 def test_analyze_document():
     """Test the main analyze_document method that orchestrates all 4 stages."""
-    with patch('scripts.ai_analyzer.AIAnalyzer.analyze_overview') as mock_overview, \
-         patch('scripts.ai_analyzer.AIAnalyzer.extract_workflows') as mock_workflows, \
-         patch('scripts.ai_analyzer.AIAnalyzer.generate_validation_rules') as mock_validation:
-
+    with (
+        patch("scripts.ai_analyzer.AIAnalyzer.analyze_overview") as mock_overview,
+        patch("scripts.ai_analyzer.AIAnalyzer.extract_workflows") as mock_workflows,
+        patch(
+            "scripts.ai_analyzer.AIAnalyzer.generate_validation_rules"
+        ) as mock_validation,
+    ):
         # Mock Stage 1: Document overview
         mock_overview.return_value = {
             "document_type": "tutorial",
             "audience": "developers",
             "topics": ["setup", "configuration"],
-            "complexity": "medium"
+            "complexity": "medium",
         }
 
         # Mock Stage 2: Workflow extraction
@@ -127,24 +152,32 @@ def test_analyze_document():
                 name="Setup Project",
                 trigger="When starting a new project",
                 steps=[
-                    WorkflowStep(name="Install", description="Install dependencies", commands=["npm install"]),
-                    WorkflowStep(name="Configure", description="Set up configuration", commands=["npm run setup"])
+                    WorkflowStep(
+                        name="Install",
+                        description="Install dependencies",
+                        commands=["npm install"],
+                    ),
+                    WorkflowStep(
+                        name="Configure",
+                        description="Set up configuration",
+                        commands=["npm run setup"],
+                    ),
                 ],
-                complexity="medium"
+                complexity="medium",
             )
         ]
 
         # Mock Stage 4: Validation rules
         mock_validation.return_value = [
             {"step": "Install", "type": "file_check", "file": "node_modules"},
-            {"step": "Configure", "type": "command", "command": "test -f config.json"}
+            {"step": "Configure", "type": "command", "command": "test -f config.json"},
         ]
 
         # Create analyzer and run full analysis
         analyzer = AIAnalyzer(provider="anthropic", model="claude-sonnet-4-6")
         parsed_doc = {
             "text_content": "Sample tutorial content about setup and configuration.",
-            "code_blocks": [{"language": "bash", "code": "npm install\nnpm run setup"}]
+            "code_blocks": [{"language": "bash", "code": "npm install\nnpm run setup"}],
         }
 
         result = analyzer.analyze_document(parsed_doc)
@@ -167,16 +200,19 @@ def test_analyze_document():
 
 def test_analyze_document_complexity_escalation():
     """Test that analyze_document uses the higher complexity between document and code."""
-    with patch('scripts.ai_analyzer.AIAnalyzer.analyze_overview') as mock_overview, \
-         patch('scripts.ai_analyzer.AIAnalyzer.extract_workflows') as mock_workflows, \
-         patch('scripts.ai_analyzer.AIAnalyzer.generate_validation_rules') as mock_validation:
-
+    with (
+        patch("scripts.ai_analyzer.AIAnalyzer.analyze_overview") as mock_overview,
+        patch("scripts.ai_analyzer.AIAnalyzer.extract_workflows") as mock_workflows,
+        patch(
+            "scripts.ai_analyzer.AIAnalyzer.generate_validation_rules"
+        ) as mock_validation,
+    ):
         # Mock document says "simple" but code is actually "complex"
         mock_overview.return_value = {
             "document_type": "reference",
             "audience": "advanced_users",
             "topics": ["api", "internals"],
-            "complexity": "simple"
+            "complexity": "simple",
         }
 
         mock_workflows.return_value = []
@@ -188,9 +224,12 @@ def test_analyze_document_complexity_escalation():
         parsed_doc = {
             "text_content": "Reference documentation.",
             "code_blocks": [
-                {"language": "python", "code": "import asyncio\n\nclass ComplexProcessor:\n    async def process(self):\n        for item in self.items:\n            await self._handle(item)"},
-                {"language": "python", "code": "def another_function():\n    pass"}
-            ]
+                {
+                    "language": "python",
+                    "code": "import asyncio\n\nclass ComplexProcessor:\n    async def process(self):\n        for item in self.items:\n            await self._handle(item)",
+                },
+                {"language": "python", "code": "def another_function():\n    pass"},
+            ],
         }
 
         result = analyzer.analyze_document(parsed_doc)
@@ -201,15 +240,18 @@ def test_analyze_document_complexity_escalation():
 
 def test_analyze_document_empty_input():
     """Test analyze_document handles empty input gracefully."""
-    with patch('scripts.ai_analyzer.AIAnalyzer.analyze_overview') as mock_overview, \
-         patch('scripts.ai_analyzer.AIAnalyzer.extract_workflows') as mock_workflows, \
-         patch('scripts.ai_analyzer.AIAnalyzer.generate_validation_rules') as mock_validation:
-
+    with (
+        patch("scripts.ai_analyzer.AIAnalyzer.analyze_overview") as mock_overview,
+        patch("scripts.ai_analyzer.AIAnalyzer.extract_workflows") as mock_workflows,
+        patch(
+            "scripts.ai_analyzer.AIAnalyzer.generate_validation_rules"
+        ) as mock_validation,
+    ):
         mock_overview.return_value = {
             "document_type": "unknown",
             "audience": "general",
             "topics": [],
-            "complexity": "medium"
+            "complexity": "medium",
         }
         mock_workflows.return_value = []
         mock_validation.return_value = []
@@ -231,8 +273,10 @@ def test_call_llm_connection_error():
 
     analyzer = AIAnalyzer(provider="anthropic", model="claude-sonnet-4-6")
 
-    with patch.object(analyzer, '_get_client') as mock_client:
-        mock_client.return_value.messages.create.side_effect = Exception("Connection timeout")
+    with patch.object(analyzer, "_get_client") as mock_client:
+        mock_client.return_value.messages.create.side_effect = Exception(
+            "Connection timeout"
+        )
 
         with pytest.raises(ConnectionError) as exc_info:
             analyzer._call_llm("test prompt")
@@ -246,8 +290,10 @@ def test_call_llm_rate_limit_error():
 
     analyzer = AIAnalyzer(provider="anthropic", model="claude-sonnet-4-6")
 
-    with patch.object(analyzer, '_get_client') as mock_client:
-        mock_client.return_value.messages.create.side_effect = Exception("Rate limit exceeded (429)")
+    with patch.object(analyzer, "_get_client") as mock_client:
+        mock_client.return_value.messages.create.side_effect = Exception(
+            "Rate limit exceeded (429)"
+        )
 
         with pytest.raises(RuntimeError) as exc_info:
             analyzer._call_llm("test prompt")
@@ -261,8 +307,10 @@ def test_call_llm_auth_error():
 
     analyzer = AIAnalyzer(provider="anthropic", model="claude-sonnet-4-6")
 
-    with patch.object(analyzer, '_get_client') as mock_client:
-        mock_client.return_value.messages.create.side_effect = Exception("Unauthorized (401)")
+    with patch.object(analyzer, "_get_client") as mock_client:
+        mock_client.return_value.messages.create.side_effect = Exception(
+            "Unauthorized (401)"
+        )
 
         with pytest.raises(PermissionError) as exc_info:
             analyzer._call_llm("test prompt")
@@ -276,8 +324,10 @@ def test_call_llm_openai_connection_error():
 
     analyzer = AIAnalyzer(provider="openai", model="gpt-4")
 
-    with patch.object(analyzer, '_get_client') as mock_client:
-        mock_client.return_value.chat.completions.create.side_effect = Exception("Network connection failed")
+    with patch.object(analyzer, "_get_client") as mock_client:
+        mock_client.return_value.chat.completions.create.side_effect = Exception(
+            "Network connection failed"
+        )
 
         with pytest.raises(ConnectionError) as exc_info:
             analyzer._call_llm("test prompt")
@@ -291,10 +341,169 @@ def test_call_llm_other_error():
 
     analyzer = AIAnalyzer(provider="anthropic", model="claude-sonnet-4-6")
 
-    with patch.object(analyzer, '_get_client') as mock_client:
-        mock_client.return_value.messages.create.side_effect = ValueError("Some other error")
+    with patch.object(analyzer, "_get_client") as mock_client:
+        mock_client.return_value.messages.create.side_effect = ValueError(
+            "Some other error"
+        )
 
         with pytest.raises(ValueError) as exc_info:
             analyzer._call_llm("test prompt")
 
         assert "Some other error" in str(exc_info.value)
+
+
+def test_qa_pair_creation():
+    """Test creating a Q&A pair object."""
+    qa = QAPair(
+        question="How do I install?",
+        answer="Run pip install",
+        category="setup",
+        source_section="Installation",
+    )
+    assert qa.question == "How do I install?"
+    assert qa.answer == "Run pip install"
+    assert qa.category == "setup"
+    assert qa.source_section == "Installation"
+
+
+def test_qa_pair_to_dict():
+    """Test Q&A pair conversion to dictionary."""
+    qa = QAPair(
+        question="How do I configure?",
+        answer="Edit the config file",
+        category="configuration",
+    )
+    result = qa.to_dict()
+    assert result["question"] == "How do I configure?"
+    assert result["answer"] == "Edit the config file"
+    assert result["category"] == "configuration"
+    assert result["source_section"] == ""
+
+
+def test_extract_qa_pairs():
+    """Test Q&A pair extraction."""
+    with patch("scripts.ai_analyzer.AIAnalyzer._call_llm") as mock_llm:
+        mock_llm.return_value = {
+            "qa_pairs": [
+                {
+                    "question": "How do I install?",
+                    "answer": "Run pip install",
+                    "category": "setup",
+                    "source_section": "Installation",
+                },
+                {
+                    "question": "What is the config format?",
+                    "answer": "YAML format",
+                    "category": "configuration",
+                },
+            ]
+        }
+
+        analyzer = AIAnalyzer(provider="anthropic", model="claude-sonnet-4-6")
+        result = analyzer.extract_qa_pairs("FAQ content about setup and configuration")
+
+        assert len(result) == 2
+        assert result[0].question == "How do I install?"
+        assert result[0].category == "setup"
+        assert result[1].question == "What is the config format?"
+        assert result[1].category == "configuration"
+
+
+def test_analyze_document_qa_mode():
+    """Test analyze_document in QA mode."""
+    with (
+        patch("scripts.ai_analyzer.AIAnalyzer.analyze_overview") as mock_overview,
+        patch("scripts.ai_analyzer.AIAnalyzer.extract_workflows") as mock_workflows,
+        patch("scripts.ai_analyzer.AIAnalyzer.extract_qa_pairs") as mock_qa,
+        patch(
+            "scripts.ai_analyzer.AIAnalyzer.generate_validation_rules"
+        ) as mock_validation,
+    ):
+        # Mock Stage 1: Document overview
+        mock_overview.return_value = {
+            "document_type": "faq",
+            "audience": "users",
+            "topics": ["setup", "troubleshooting"],
+            "complexity": "simple",
+        }
+
+        # Mock Stage 2: Workflow extraction (still done but not used)
+        mock_workflows.return_value = []
+
+        # Mock Stage 5: Q&A extraction
+        mock_qa.return_value = [
+            QAPair(
+                question="How do I install?", answer="Run pip install", category="setup"
+            ),
+            QAPair(
+                question="What if I get an error?",
+                answer="Check the logs",
+                category="troubleshooting",
+            ),
+        ]
+
+        mock_validation.return_value = []
+
+        # Create analyzer and run analysis in QA mode
+        analyzer = AIAnalyzer(provider="anthropic", model="claude-sonnet-4-6")
+        parsed_doc = {
+            "text_content": "FAQ document with common questions.",
+            "code_blocks": [],
+        }
+
+        result = analyzer.analyze_document(parsed_doc, mode="qa")
+
+        # Verify the result
+        assert isinstance(result, DocumentAnalysis)
+        assert result.document_type == "faq"
+        assert len(result.qa_pairs) == 2
+        assert result.qa_pairs[0].question == "How do I install?"
+        assert result.qa_pairs[1].category == "troubleshooting"
+
+        # Verify Q&A extraction was called
+        mock_qa.assert_called_once()
+
+
+def test_analyze_document_workflow_mode():
+    """Test analyze_document in workflow mode (default)."""
+    with (
+        patch("scripts.ai_analyzer.AIAnalyzer.analyze_overview") as mock_overview,
+        patch("scripts.ai_analyzer.AIAnalyzer.extract_workflows") as mock_workflows,
+        patch("scripts.ai_analyzer.AIAnalyzer.extract_qa_pairs") as mock_qa,
+        patch(
+            "scripts.ai_analyzer.AIAnalyzer.generate_validation_rules"
+        ) as mock_validation,
+    ):
+        # Mock Stage 1: Document overview
+        mock_overview.return_value = {
+            "document_type": "tutorial",
+            "audience": "developers",
+            "topics": ["setup"],
+            "complexity": "medium",
+        }
+
+        # Mock Stage 2: Workflow extraction
+        mock_workflows.return_value = [
+            Workflow(
+                name="Setup",
+                trigger="When starting",
+                steps=[WorkflowStep(name="Install", description="Run install")],
+                complexity="medium",
+            )
+        ]
+
+        mock_qa.return_value = []
+        mock_validation.return_value = []
+
+        # Create analyzer and run analysis in workflow mode (default)
+        analyzer = AIAnalyzer(provider="anthropic", model="claude-sonnet-4-6")
+        parsed_doc = {"text_content": "Tutorial content.", "code_blocks": []}
+
+        result = analyzer.analyze_document(parsed_doc, mode="workflow")
+
+        # Verify the result
+        assert isinstance(result, DocumentAnalysis)
+        assert len(result.workflows) == 1
+        assert result.workflows[0].name == "Setup"
+        # Q&A extraction should NOT be called in workflow mode
+        mock_qa.assert_not_called()

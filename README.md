@@ -9,7 +9,9 @@ pdf2skill is a pipeline tool that:
 2. Extracts workflows and procedures using LLM analysis
 3. Generates structured AI skills with adaptive complexity
 
-**Key Feature**: Automatic OCR fallback for PDFs with encoding issues (common in Chinese PDFs with embedded fonts).
+**Key Features**:
+- **Two Generation Modes**: Workflow mode (step-by-step procedures) and Q&A mode (question-answer pairs)
+- **Automatic OCR fallback** for PDFs with encoding issues (common in Chinese PDFs with embedded fonts)
 
 ## Installation
 
@@ -58,6 +60,18 @@ export PDF2SKILL_LLM_API_KEY=your-key
 python scripts/pdf2skill.py input.pdf
 ```
 
+### Q&A Mode
+
+Generate skills with question-answer pairs instead of workflows:
+
+```bash
+# Extract Q&A pairs from documentation
+python scripts/pdf2skill.py manual.pdf --mode qa -o ./qa-skill
+
+# Q&A mode with verbose output
+python scripts/pdf2skill.py faq.pdf --mode qa -v
+```
+
 ## CLI Options
 
 | Option | Description |
@@ -73,6 +87,7 @@ python scripts/pdf2skill.py input.pdf
 | `--force-ocr` | Force OCR parsing for PDFs |
 | `--ocr-language` | OCR language: ch/en/ml (default: ch) |
 | `--no-ocr` | Disable automatic OCR fallback |
+| `--mode` | Generation mode: workflow/qa (default: workflow) |
 
 ## Architecture
 
@@ -88,6 +103,7 @@ python scripts/pdf2skill.py input.pdf
 |  2. AI Understanding Layer          |
 |     +-- Document overview          |
 |     +-- Workflow extraction         |
+|     +-- Q&A extraction (QA mode)    |
 |     +-- Code complexity assessment  |
 |     +-- Validation rule generation  |
 +-------------------------------------+
@@ -95,6 +111,7 @@ python scripts/pdf2skill.py input.pdf
 |     +-- Adaptive structure selection|
 |     +-- SKILL.md generation         |
 |     +-- scripts/ + references/     |
+|     +-- Q&A templates (QA mode)     |
 +-------------------------------------+
 ```
 
@@ -134,6 +151,24 @@ skill-name/
 +-- scripts/
 +-- references/
 +-- templates/
+```
+
+## Q&A Mode Output
+
+When using `--mode qa`, the skill structure includes Q&A-specific files:
+
+```
+skill-name/
++-- SKILL.md              # All Q&A pairs organized by category
++-- scripts/
+|   +-- search_qa.sh      # Search through Q&A pairs
+|   +-- export_qa.sh      # Export Q&A to various formats
++-- references/
+|   +-- qa_index.md       # Index of all questions
+|   +-- categories.md     # Category descriptions
++-- templates/
+    +-- qa_template.md    # Template for adding new Q&A pairs
+    +-- qa_template.json  # JSON template for Q&A
 ```
 
 ## License

@@ -80,3 +80,58 @@ Generate validation rules for each workflow step:
   ]
 }
 ```
+
+## Stage 5: Q&A Extraction (QA Mode)
+
+Extract question-answer pairs from the document:
+- Question: Clear, natural language question
+- Answer: Comprehensive but concise answer
+- Category: setup, usage, troubleshooting, concept, configuration, general
+- Source section: Which section of the document this came from
+
+```json
+{
+  "qa_pairs": [
+    {
+      "question": "How do I install the tool?",
+      "answer": "Run `npm install -g tool-name` to install globally, or `npm install tool-name` for local installation.",
+      "category": "setup",
+      "source_section": "Installation"
+    },
+    {
+      "question": "What should I do if I get error XYZ?",
+      "answer": "This error typically occurs when... To fix it, try the following steps...",
+      "category": "troubleshooting",
+      "source_section": "Troubleshooting"
+    }
+  ]
+}
+```
+
+### Categories
+
+- **setup**: Installation and initial configuration questions
+- **usage**: How-to and feature usage questions  
+- **troubleshooting**: Problem-solving and error resolution
+- **concept**: Architecture, theory, and concept explanations
+- **configuration**: Settings and configuration options
+- **general**: General questions that don't fit other categories
+
+### Extraction Guidelines
+
+1. Look for explicit Q&A patterns:
+   - "Q: ... A: ..." format
+   - "Question: ... Answer: ..." format
+   - Numbered questions (1., 2., etc.)
+   - FAQ sections
+
+2. Identify implicit Q&A pairs:
+   - Problem/solution pairs in troubleshooting sections
+   - "How to" statements that can be converted to questions
+   - Common user questions based on content
+
+3. Ensure quality:
+   - Questions should be clear and specific
+   - Answers should be complete but concise
+   - Include relevant code examples if present
+   - Categorize appropriately for easy navigation

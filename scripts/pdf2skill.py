@@ -41,65 +41,71 @@ def parse_args() -> argparse.Namespace:
         description="Convert PDF/EPUB technical documents into executable AI skills"
     )
     parser.add_argument(
-        "input_file",
-        type=str,
-        help="Path to the input PDF or EPUB file"
+        "input_file", type=str, help="Path to the input PDF or EPUB file"
     )
     parser.add_argument(
-        "--output", "-o",
+        "--output",
+        "-o",
         type=str,
         default=".",
-        help="Output directory for the generated skill (default: current directory)"
+        help="Output directory for the generated skill (default: current directory)",
     )
     parser.add_argument(
-        "--name", "-n",
+        "--name",
+        "-n",
         type=str,
-        help="Name for the generated skill (default: derived from input file)"
+        help="Name for the generated skill (default: derived from input file)",
     )
     parser.add_argument(
-        "--model", "-m",
+        "--model",
+        "-m",
         type=str,
-        help="LLM model to use (e.g., claude-sonnet-4-6, gpt-4o)"
+        help="LLM model to use (e.g., claude-sonnet-4-6, gpt-4o)",
     )
     parser.add_argument(
-        "--provider", "-p",
+        "--provider",
+        "-p",
         type=str,
         choices=["anthropic", "openai", "openai-compatible"],
-        help="LLM provider (anthropic, openai, openai-compatible)"
+        help="LLM provider (anthropic, openai, openai-compatible)",
     )
     parser.add_argument(
-        "--structure", "-s",
+        "--structure",
+        "-s",
         type=str,
         choices=["minimal", "standard", "complete", "auto"],
         default="auto",
-        help="Output structure type (default: auto)"
+        help="Output structure type (default: auto)",
     )
     parser.add_argument(
-        "--config", "-c",
-        type=str,
-        help="Path to YAML configuration file"
+        "--config", "-c", type=str, help="Path to YAML configuration file"
     )
     parser.add_argument(
-        "--verbose", "-v",
-        action="store_true",
-        help="Enable verbose output"
+        "--verbose", "-v", action="store_true", help="Enable verbose output"
     )
     parser.add_argument(
         "--force-ocr",
         action="store_true",
-        help="Force OCR parsing for PDFs (useful for PDFs with encoding issues)"
+        help="Force OCR parsing for PDFs (useful for PDFs with encoding issues)",
     )
     parser.add_argument(
         "--ocr-language",
         type=str,
         default="ch",
         choices=["ch", "en", "ml"],
-        help="OCR language: ch (Chinese), en (English), ml (multilingual). Default: ch"
+        help="OCR language: ch (Chinese), en (English), ml (multilingual). Default: ch",
     )
     parser.add_argument(
         "--no-ocr",
         action="store_true",
-        help="Disable automatic OCR fallback for PDFs with encoding issues"
+        help="Disable automatic OCR fallback for PDFs with encoding issues",
+    )
+    parser.add_argument(
+        "--mode",
+        type=str,
+        choices=["workflow", "qa"],
+        default="workflow",
+        help="Generation mode: workflow (extract procedures) or qa (extract Q&A pairs). Default: workflow",
     )
 
     return parser.parse_args()
@@ -151,6 +157,7 @@ def process_document(
     verbose: bool = False,
     ocr_config: Optional[OCRConfig] = None,
     force_ocr: bool = False,
+    mode: str = "workflow",
 ) -> Optional[GeneratedSkill]:
     """
     Process a single document and generate a skill.
@@ -163,6 +170,7 @@ def process_document(
         verbose: Enable verbose output
         ocr_config: OCR configuration for PDFs with encoding issues
         force_ocr: Force OCR parsing even if text seems valid
+        mode: Generation mode - "workflow" or "qa"
 
     Returns:
         GeneratedSkill object if successful, None otherwise
@@ -192,6 +200,7 @@ def process_document(
         print(f"Output directory: {output_dir}")
         print(f"Skill name: {skill_name}")
         print(f"Structure: {config.structure}")
+        print(f"Mode: {mode}")
         print(f"Provider: {config.llm.provider}")
         print(f"Model: {config.llm.model}")
         if force_ocr:
@@ -231,18 +240,20 @@ def process_document(
     parsed_dict = {
         "text_content": parsed_doc.text_content,
         "code_blocks": [
-            {"language": cb.language, "code": cb.code}
-            for cb in parsed_doc.code_blocks
+            {"language": cb.language, "code": cb.code} for cb in parsed_doc.code_blocks
         ],
     }
 
-    analysis = analyzer.analyze_document(parsed_dict)
+    analysis = analyzer.analyze_document(parsed_dict, mode=mode)
 
     if verbose:
         print(f"  - Document type: {analysis.document_type}")
         print(f"  - Audience: {analysis.audience}")
         print(f"  - Complexity: {analysis.complexity}")
-        print(f"  - Workflows found: {len(analysis.workflows)}")
+        if mode == "qa":
+            print(f"  - Q&A pairs found: {len(analysis.qa_pairs)}")
+        else:
+            print(f"  - Workflows found: {len(analysis.workflows)}")
 
     # Step 3: Determine structure
     if verbose:
@@ -258,7 +269,7 @@ def process_document(
     structure = generator.determine_structure(
         page_count=estimated_pages,
         code_blocks=code_block_count,
-        force=config.structure if config.structure != "auto" else None
+        force=config.structure if config.structure != "auto" else None,
     )
 
     if verbose:
@@ -286,6 +297,8 @@ def process_document(
             "topics": analysis.topics,
         },
         validation_rules=analysis.validation_rules,
+        qa_pairs=analysis.qa_pairs,
+        mode=mode,
     )
 
     # Write skill to disk
@@ -334,6 +347,7 @@ def main() -> int:
             verbose=args.verbose,
             ocr_config=ocr_config,
             force_ocr=args.force_ocr,
+            mode=args.mode,
         )
 
         return 0
@@ -360,6 +374,7 @@ def main() -> int:
         print(f"Unexpected error: {e}", file=sys.stderr)
         if args.verbose:
             import traceback
+
             traceback.print_exc()
         return 4
 

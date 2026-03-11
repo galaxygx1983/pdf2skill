@@ -14,6 +14,10 @@ pdf2skill is a pipeline tool that:
 2. Extracts workflows and procedures using LLM analysis
 3. Generates structured AI skills with adaptive complexity
 
+**Two Generation Modes:**
+- **Workflow Mode** (default): Extracts step-by-step procedures and commands
+- **Q&A Mode**: Extracts question-answer pairs for quick reference
+
 ## Quick Start
 
 ### Basic Usage
@@ -44,6 +48,18 @@ python scripts/pdf2skill.py input.pdf
 python scripts/pdf2skill.py *.pdf -o ./skills-output/
 ```
 
+### Q&A Mode (New!)
+
+Generate skills with question-answer pairs instead of workflows:
+
+```bash
+# Extract Q&A pairs from documentation
+python scripts/pdf2skill.py manual.pdf --mode qa -o ./qa-skill
+
+# Q&A mode with verbose output
+python scripts/pdf2skill.py faq.pdf --mode qa -v
+```
+
 ## CLI Options
 
 | Option | Description |
@@ -59,6 +75,7 @@ python scripts/pdf2skill.py *.pdf -o ./skills-output/
 | `--force-ocr` | Force OCR parsing for PDFs |
 | `--ocr-language` | OCR language: ch/en/ml (default: ch) |
 | `--no-ocr` | Disable automatic OCR fallback |
+| `--mode` | Generation mode: workflow/qa (default: workflow) |
 
 ## OCR Fallback for Chinese PDFs
 
@@ -108,6 +125,7 @@ pip install PyMuPDF paddleocr paddlepaddle
 |  2. AI Understanding Layer          |
 |     +-- Document overview          |
 |     +-- Workflow extraction         |
+|     +-- Q&A extraction (QA mode)    |
 |     +-- Code complexity assessment  |
 |     +-- Validation rule generation  |
 +-------------------------------------+
@@ -115,6 +133,7 @@ pip install PyMuPDF paddleocr paddlepaddle
 |     +-- Adaptive structure selection|
 |     +-- SKILL.md generation         |
 |     +-- scripts/ + references/     |
+|     +-- Q&A templates (QA mode)     |
 +-------------------------------------+
 ```
 
@@ -147,6 +166,37 @@ skill-name/
 +-- templates/
 ```
 
+## Q&A Mode Output Structure
+
+### Minimal
+```
+skill-name/
++-- SKILL.md              # Contains all Q&A pairs organized by category
+```
+
+### Standard
+```
+skill-name/
++-- SKILL.md              # Main Q&A content
++-- scripts/
+|   +-- search_qa.sh      # Search through Q&A pairs
+|   +-- export_qa.sh      # Export Q&A to various formats
++-- references/
+    +-- qa_index.md       # Index of all questions
+    +-- categories.md     # Category descriptions
+```
+
+### Complete
+```
+skill-name/
++-- SKILL.md
++-- scripts/
++-- references/
++-- templates/
+    +-- qa_template.md    # Template for adding new Q&A pairs
+    +-- qa_template.json  # JSON template for Q&A
+```
+
 ## Integration with Other Skills
 
 | Skill | Integration |
@@ -163,6 +213,7 @@ skill-name/
 | LLM API failure | Retry 3x with exponential backoff |
 | Empty document | Warn and exit |
 | No workflow found | Fallback to basic extraction |
+| No Q&A pairs found | Generate empty Q&A structure with guidance |
 
 ## Python API
 
@@ -172,10 +223,22 @@ from scripts.config import Config
 from pathlib import Path
 
 config = Config.from_env()
+
+# Workflow mode (default)
 result = process_document(
     input_path=Path("input.pdf"),
     output_dir=Path("./output"),
     config=config,
+    mode="workflow",  # or "qa"
+    verbose=True,
+)
+
+# Q&A mode
+result = process_document(
+    input_path=Path("faq.pdf"),
+    output_dir=Path("./qa-output"),
+    config=config,
+    mode="qa",
     verbose=True,
 )
 ```

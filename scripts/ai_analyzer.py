@@ -54,6 +54,25 @@ class Workflow:
 
 
 @dataclass
+class QAPair:
+    """Represents a question-answer pair extracted from documentation."""
+
+    question: str
+    answer: str
+    category: str = "general"  # e.g., "setup", "troubleshooting", "concept", "usage"
+    source_section: str = ""  # Which section of the document this came from
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary representation."""
+        return {
+            "question": self.question,
+            "answer": self.answer,
+            "category": self.category,
+            "source_section": self.source_section,
+        }
+
+
+@dataclass
 class DocumentAnalysis:
     """Complete analysis result for a document."""
 
@@ -63,6 +82,7 @@ class DocumentAnalysis:
     complexity: str
     workflows: List[Workflow]
     validation_rules: List[Dict[str, Any]]
+    qa_pairs: List[QAPair] = field(default_factory=list)  # Q&A pairs for QA mode
 
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary representation."""
@@ -73,6 +93,7 @@ class DocumentAnalysis:
             "complexity": self.complexity,
             "workflows": [w.to_dict() for w in self.workflows],
             "validation_rules": self.validation_rules,
+            "qa_pairs": [qa.to_dict() for qa in self.qa_pairs],
         }
 
 
@@ -130,7 +151,9 @@ class AIAnalyzer:
 
         return self._client
 
-    def _call_llm(self, prompt: str, system: str = "You are a helpful assistant.") -> Dict[str, Any]:
+    def _call_llm(
+        self, prompt: str, system: str = "You are a helpful assistant."
+    ) -> Dict[str, Any]:
         """
         Call the LLM and return parsed JSON response.
 
@@ -175,15 +198,28 @@ class AIAnalyzer:
             error_message = str(e).lower()
 
             # Handle API connection errors
-            if "connection" in error_message or "timeout" in error_message or "network" in error_message:
+            if (
+                "connection" in error_message
+                or "timeout" in error_message
+                or "network" in error_message
+            ):
                 raise ConnectionError(f"API connection failed: {e}") from e
 
             # Handle rate limit errors
-            if "rate" in error_message or "limit" in error_message or "429" in error_message:
+            if (
+                "rate" in error_message
+                or "limit" in error_message
+                or "429" in error_message
+            ):
                 raise RuntimeError(f"API rate limit exceeded: {e}") from e
 
             # Handle authentication errors
-            if "auth" in error_message or "unauthorized" in error_message or "401" in error_message or "403" in error_message:
+            if (
+                "auth" in error_message
+                or "unauthorized" in error_message
+                or "401" in error_message
+                or "403" in error_message
+            ):
                 raise PermissionError(f"API authentication failed: {e}") from e
 
             # Re-raise other exceptions
@@ -375,12 +411,69 @@ Each rule should have: step, type, and relevant parameters (command, expected, f
         result = self._call_llm(prompt, system)
         return result.get("validation_rules", [])
 
-    def analyze_document(self, parsed_doc: Dict[str, Any]) -> DocumentAnalysis:
+    def extract_qa_pairs(self, text_content: str) -> List[QAPair]:
         """
-        Perform full document analysis through all 4 stages.
+        Extract Q&A pairs from document content.
+
+        Identifies common Q&A patterns like:
+        - FAQ sections
+        - "Q: ... A: ..." patterns
+        - "Question: ... Answer: ..." patterns
+        - Numbered questions with answers
+        - Troubleshooting sections with problem/solution pairs
+
+        Args:
+            text_content: Document text content
+
+        Returns:
+            List of QAPair objects
+        """
+        system = """You are an expert at extracting question-answer pairs from technical documentation.
+Return JSON responses with Q&A structures."""
+
+        prompt = f"""Extract all question-answer pairs from this document. Look for:
+1. FAQ sections
+2. "Q: ... A: ..." patterns
+3. "Question: ... Answer: ..." patterns
+4. Numbered questions with answers
+5. Troubleshooting sections with problem/solution pairs
+6. Common questions that users might ask based on the content
+
+For each Q&A pair provide:
+- question: The question (clear, concise, natural language)
+- answer: The answer (comprehensive but concise)
+- category: One of ["setup", "usage", "troubleshooting", "concept", "configuration", "general"]
+- source_section: The section/topic this came from (if identifiable)
+
+Return ONLY a JSON object with a "qa_pairs" array.
+
+Document content:
+{text_content[:15000]}
+"""
+        result = self._call_llm(prompt, system)
+
+        qa_pairs = []
+        for qa_data in result.get("qa_pairs", []):
+            qa_pairs.append(
+                QAPair(
+                    question=qa_data.get("question", ""),
+                    answer=qa_data.get("answer", ""),
+                    category=qa_data.get("category", "general"),
+                    source_section=qa_data.get("source_section", ""),
+                )
+            )
+
+        return qa_pairs
+
+    def analyze_document(
+        self, parsed_doc: Dict[str, Any], mode: str = "workflow"
+    ) -> DocumentAnalysis:
+        """
+        Perform full document analysis through all stages.
 
         Args:
             parsed_doc: Parsed document with 'text_content' and 'code_blocks'
+            mode: Analysis mode - "workflow" or "qa"
 
         Returns:
             Complete DocumentAnalysis
@@ -391,7 +484,7 @@ Each rule should have: step, type, and relevant parameters (command, expected, f
         # Stage 1: Document overview
         overview = self.analyze_overview(text_content)
 
-        # Stage 2: Extract workflows
+        # Stage 2: Extract workflows (always done, but may be empty in QA mode)
         workflows = self.extract_workflows(text_content)
 
         # Stage 3: Assess code complexity
@@ -411,6 +504,11 @@ Each rule should have: step, type, and relevant parameters (command, expected, f
             rules = self.generate_validation_rules(workflow, final_complexity)
             all_validation_rules.extend(rules)
 
+        # Stage 5: Extract Q&A pairs (if in QA mode or always extract)
+        qa_pairs = []
+        if mode == "qa":
+            qa_pairs = self.extract_qa_pairs(text_content)
+
         return DocumentAnalysis(
             document_type=overview.get("document_type", "unknown"),
             audience=overview.get("audience", "general"),
@@ -418,4 +516,5 @@ Each rule should have: step, type, and relevant parameters (command, expected, f
             complexity=final_complexity,
             workflows=workflows,
             validation_rules=all_validation_rules,
+            qa_pairs=qa_pairs,
         )
