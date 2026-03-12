@@ -1,6 +1,27 @@
 ---
 name: pdf2skill
-description: "Convert PDF/EPUB technical documents into executable AI skills with extracted workflows. Use when users need to transform technical manuals, tutorials, and documentation into reusable AI skills."
+description: PDF/EPUB技术文档转AI Skill转换工具(pdf2skill)。当用户需要将PDF技术手册/教程/文档转换为可执行AI技能、从PDF提取工作流(workflow extraction)和操作步骤、将EPUB电子书转换为Claude Skill、处理中文PDF文档(自动OCR识别)、批量转换多个PDF文档、生成SKILL.md文件和脚本目录结构、使用LLM分析文档内容并提取流程、将技术文档转换为可复用的AI助手、处理扫描版PDF(OCR fallback)、提取Q&A问答对生成知识库技能、转换API文档/开发指南/操作手册为Skill、从文档提取验证规则(validation rules)、自适应复杂度评估生成不同层级技能结构等相关任务时立即使用。支持Workflow模式(工作流提取)和Q&A模式(问答对提取)，自动处理乱码和编码问题。
+trigger:
+  - PDF转Skill
+  - EPUB转Skill
+  - 文档转Skill
+  - PDF转换
+  - 提取工作流
+  - 技术文档转换
+  - 教程转AI技能
+  - 手册转Skill
+  - PDF OCR
+  - 批量转换
+  - 生成SKILL.md
+  - 文档解析
+  - 工作流提取
+  - Q&A提取
+  - 知识库转换
+  - 扫描PDF处理
+  - 中文PDF转换
+  - API文档转换
+  - 操作手册转换
+  - pdf2skill
 ---
 
 # PDF2Skill
